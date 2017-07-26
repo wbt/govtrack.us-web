@@ -22,16 +22,20 @@ def compute_productivity(congress, date_range):
 	enacted_bills = Bill.objects.filter(
 		congress=congress, # if we're measuring presidential activity, the date of signing could be outside of the Congress, so change this
 
-		#current_status__in=BillStatus.final_status_enacted_bill,
+		current_status__in=BillStatus.final_status_enacted_bill,
 		#current_status=BillStatus.enacted_signed,
-		#current_status_date__gte=date_range[0],
-		#current_status_date__lte=date_range[1]
+		current_status_date__gte=date_range[0],
+		current_status_date__lte=date_range[1]
 
-		introduced_date__gte=date_range[0],
-		introduced_date__lte=date_range[1]
+		#introduced_date__gte=date_range[0],
+		#introduced_date__lte=date_range[1]
 
 		)\
 		.order_by('current_status_date')
+
+	if date_range[0].month == 1 and date_range[0].day == 20:
+		# last bill Obama signed was a rare Jan 20th morning
+		enacted_bills = enacted_bills.exclude(id=347731)
 
 	#enacted_bills = (enacted_bills.filter(title__contains="Appropriations") | enacted_bills.filter(title__contains="Authorization")).distinct()
 
@@ -42,7 +46,6 @@ def compute_productivity(congress, date_range):
 	enacted_bill_words = 0
 	enacted_bill_pages_missing = 0
 	for b in enacted_bills:
-		continue
 		try:
 			pp = load_bill_text(b, None, mods_only=True).get("numpages")
 		except IOError:
@@ -78,23 +81,26 @@ def compute_productivity(congress, date_range):
 	W.writerow(row)
 	#print("<tr>%s</tr>" % "".join( "<td>%s</td> " % td for td in row) )
 
-if 1:
+if 0:
 	# Look at corresponding time periods from past Congresses.
 	# Go back a few days because our data isn't real time!
 	days_in = (datetime.now().date() - get_congress_dates(CURRENT_CONGRESS)[0]) \
 		- timedelta(days=4)
 	print("We are about %d days into the %d Congress" % (days_in.days, CURRENT_CONGRESS))
-	#for c in range(93, CURRENT_CONGRESS+1):
-	for c in [111, 115]:
+	for c in range(93, CURRENT_CONGRESS+1):
 		date_range = get_congress_dates(c)
 		compute_productivity(c, (date_range[0], date_range[0] + days_in))
 
-elif 0:
-	# First 100 days of presidency.
+elif 1:
+	# First X days of presidency, minus a few days because of
+	# data delays.
+	days_in = (datetime.now().date() - datetime(get_congress_dates(CURRENT_CONGRESS)[0].year, 1, 20, 0, 0, 0).date()) \
+		- timedelta(days=0)
+	#days_in = timedelta(days=150)
+	print("We are about %d days into the presidency" % days_in.days)
 	for c in (95, 97, 101, 103, 107, 111, 115):
 		date_range = get_congress_dates(c)
-		date_range = (datetime(date_range[0].year, 1, 20).date(), None)
-		date_range = (date_range[0], date_range[0]+timedelta(days=100))
+		date_range = (datetime(date_range[0].year, 1, 20).date(), datetime(date_range[0].year, 1, 20).date()+days_in)
 		compute_productivity(c, date_range)
 
 elif 0:
